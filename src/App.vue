@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ref, type Ref } from 'vue'
+import { onMounted, ref, watchEffect, type Ref, watch } from 'vue'
 import type { Todo } from './types/Todo'
 
-const todos: Ref<Todo[]> = ref([
-  { id: 1, text: 'Learn Vue Js', completed: false },
-  { id: 2, text: 'Build a to-do application', completed: false },
-  { id: 3, text: 'Push it onto github', completed: false },
-])
+const STORAGE_KEYS = 'local_todos'
 
-const newTodoText: Ref<String> = ref('')
+const todos: Ref<Todo[]> = ref([])
+
+// const todos: Ref<Todo[]> = ref([
+//   { id: 1, text: 'Learn Vue Js', completed: false },
+//   { id: 2, text: 'Build a to-do application', completed: false },
+//   { id: 3, text: 'Push it onto github', completed: false },
+// ])
+
+const newTodoText: Ref<string> = ref('')
 
 function addTodo(): void {
   if (newTodoText.value.trim()) {
@@ -29,6 +33,35 @@ function toggleTodo(todo: Todo): void {
 function removeTodo(todoId: number) {
   todos.value = todos.value.filter((todo) => todo.id != todoId)
 }
+const loaded = ref(false)
+
+onMounted(() => {
+  const storedTodos = localStorage.getItem(STORAGE_KEYS)
+  if (storedTodos) {
+    try {
+      todos.value = JSON.parse(storedTodos)
+    } catch (e) {
+      console.error(`Failed to parse todos: ${e}`)
+    }
+  }
+  loaded.value = true
+})
+
+watch(
+  todos,
+  (newTodos) => {
+    if (loaded.value) {
+      localStorage.setItem(STORAGE_KEYS, JSON.stringify(newTodos))
+    }
+  },
+  { deep: true },
+)
+
+watchEffect(() => {
+  console.log('add todos to local storage')
+  const todoJson = JSON.stringify(todos.value)
+  localStorage.setItem(STORAGE_KEYS, todoJson)
+})
 </script>
 
 <template>
@@ -48,7 +81,7 @@ function removeTodo(todoId: number) {
         :class="{ completed: todo.completed }"
       >
         {{ todo.text }}
-        <button @click="removeTodo(todo.id)" class="remove-button">X</button>
+        <button @click.stop="removeTodo(todo.id)" class="remove-button">X</button>
       </li>
     </ul>
   </main>
